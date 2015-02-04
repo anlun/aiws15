@@ -15,7 +15,7 @@ let join x y =
   |  Top,    _ -> Top
   |    _,  Top -> Top
   | Even, Even -> Even
-  |  Odd,  Odd -> Even
+  |  Odd,  Odd -> Odd
   |  Bot,    _ -> y 
   |    _,  Bot -> x 
   | _ -> Top

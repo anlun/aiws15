@@ -11,29 +11,11 @@ let approxPP a =
   Printf.sprintf "{x:%3s, y:%3s, z:%3s}"
                  (parityPP x) (parityPP y) (parityPP z)
 
-let updateApprox (i : inst) a =
-  let (x, y, z) = a in
-  match i with
-  | Inc X -> (incr x, y, z) 
-  | Inc Y -> (x, incr y, z)
-  | Inc Z -> (x, y, incr z)
-  
-  | Dec X -> (decr x, y, z) 
-  | Dec Y -> (x, decr y, z)
-  | Dec Z -> (x, y, decr z)
-
-  | _ -> a
-
 let joinApprox a b =
   let (xa, ya, za) = a in
   let (xb, yb, zb) = b in
   (join xa xb, join ya yb, join za zb)
 
-let calcApprox (l : approx list) =
-  List.fold_left joinApprox botApprox l
-
-(* -- *)
-            
 let updateApproxPC (i : inst) (p : pc) (a : approx) =
   let (x, y, z) = a in
   match i with
@@ -51,18 +33,24 @@ let updateApproxPC (i : inst) (p : pc) (a : approx) =
 
   | Stop -> []
 
+let containsBot a =
+  match a with
+  | Bot, _, _ -> true
+  | _, Bot, _ -> true
+  | _, _, Bot -> true
+  | _ -> false
+
 let update (p : program) (ar : approx array) : approx array =
   let newAr = Array.copy ar in
   let pcounter = ref 0 in
   List.iter (fun i ->
     pcounter := !pcounter + 1;
     let curApp  = ar.(!pcounter - 1) in
-    let curInst = List.nth p (!pcounter - 1) in
-    let updList = updateApproxPC curInst !pcounter curApp in
-
+    let updList = updateApproxPC i !pcounter curApp in
     List.iter (fun (pc, updApp) ->
       let app = newAr.(pc - 1) in
-      newAr.(pc - 1) <- joinApprox app updApp
+      if not (containsBot updApp) then
+        newAr.(pc - 1) <- joinApprox app updApp
     ) updList
   ) p;
   newAr
@@ -105,4 +93,3 @@ let () =
     oldApp := !app;
     app    := newApp
   done
-
