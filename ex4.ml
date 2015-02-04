@@ -52,7 +52,7 @@ let updateApproxPC (i : inst) (p : pc) (a : approx) =
   | Stop -> []
 
 let update (p : program) (ar : approx array) : approx array =
-  let newAr = Array.make (Array.length ar) botApprox in
+  let newAr = Array.copy ar in
   let pcounter = ref 0 in
   List.iter (fun i ->
     pcounter := !pcounter + 1;
@@ -90,10 +90,13 @@ let pr_ex3 =
 
 let () =
   let pr1 = fst (List.hd (progP pr_ex3)) in
-  let app = ref (Array.make (List.length pr1) topApprox) in
+  let oldApp = ref (Array.make (List.length pr1) botApprox) in
+  let app    = ref (Array.copy !oldApp) in
   !app.(0) <- (Top, Even, Even);
-  for i = 1 to 10 do
+  while app <> oldApp do
     Printf.printf "%s\n\n" (programApproxPP pr1 !app);
-    app := update pr1 !app
+    let newApp = update pr1 !app in
+    oldApp := !app;
+    app    := newApp
   done
 
