@@ -46,13 +46,13 @@ struct
     ) p ""
 end
 
+type pc = int (* program counter *)
+type state = pc * int * int * int
+
+type program = inst list
+
 module Interpreter =
 struct
-  type pc = int (* program counter *)
-  type state = pc * int * int * int
-
-  type program = inst list
-
   let step (s : state) (p : program) =
     (* current instruction *)
     let (m, x, y, z) = s in
@@ -114,9 +114,10 @@ let pr_ex2 =
 open PrettyPrinter
 open Parser
 open Interpreter
-       
+(*       
 let () =
   (*let pr_text = Printf.*)
   let pr1 = fst (List.hd (progP pr_ex2)) in 
   Printf.printf "%s\n" (progPP pr1);
   interpret 1 pr1 
+ *)
