@@ -1,2 +1,2 @@
 all:
-	ocamlc parity.ml parserComb.ml cm3.ml ex4.ml
+	ocamlc parserComb.ml cm3.ml interval.ml
