@@ -4,11 +4,11 @@ struct
 
   let pp (i : t) =
     match i with
-    | Bot -> "O"
+    | Bot -> "/"
     | Top -> "Z"
-    | NegInf   x -> Printf.sprintf "(-inf, %4i)" x
-    | PosInf   x -> Printf.sprintf "(%4i, +inf)" x
-    | Fin (x, y) -> Printf.sprintf "(%4i, %4i)" x y
+    | NegInf   x -> Printf.sprintf "(-i, %2i)" x
+    | PosInf   x -> Printf.sprintf "(%2i, +i)" x
+    | Fin (x, y) -> Printf.sprintf "(%2i, %2i)" x y
 
   let bot : t = Bot
 
@@ -25,8 +25,8 @@ struct
   
   let join a b =
     match a, b with
-    | Bot, _ -> a
-    | _, Bot -> b
+    | Bot, _ -> b
+    | _, Bot -> a
     | _, Top -> Top
     | Top, _ -> Top
     | NegInf x, NegInf y -> NegInf (max x y)
@@ -93,8 +93,8 @@ struct
   
   let widen a b =
     match a, b with
-    | Bot, _ -> Bot
-    | _, Bot -> Bot
+    | Bot, _ -> b
+    | _, Bot -> a
     | Top, _ -> Top
     | _, Top -> Top
 
@@ -109,7 +109,7 @@ struct
     | Fin (x1, x2), NegInf y -> if x2 >= y then NegInf x2 else Top
     | Fin (x1, x2), PosInf y -> if x1 <= y then PosInf x1 else Top
     | Fin (x1, x2), Fin (y1, y2) ->
-       match x1 <= y1, x2 <= y2 with
+       match x1 <= y1, x2 >= y2 with
        |  true,  true -> Fin (x1, x2)
        |  true, false -> PosInf x1
        | false,  true -> NegInf x2
@@ -132,6 +132,9 @@ sig
 
   val  botTriple : t * t * t
   val initTriple : t * t * t
+  
+  val narrow: t * t * t -> t * t * t -> t * t * t
+  val widen : t * t * t -> t * t * t -> t * t * t
 end
 
 module IntervalState : AnalysisType =
@@ -152,22 +155,6 @@ struct
     let (b1, b2, b3) = b in
     Interval.widen a1 b1, Interval.widen a2 b2, Interval.widen a3 b3
   
-  type approx = t3 array
-                  
-  let narrowApprox (a : approx) (b : approx) =
-    let res = Array.copy a in
-    for i = 0 to Array.length a - 1 do
-      res.(i) <- narrow a.(i) b.(i) 
-    done;
-    res
-  
-  let widenApprox (a : approx) (b : approx) =
-    let res = Array.copy a in
-    for i = 0 to Array.length a - 1 do
-      res.(i) <- widen a.(i) b.(i) 
-    done;
-    res
-
   let containsBot a =
     match a with
     | Bot, _, _ -> true
@@ -178,11 +165,11 @@ struct
   let joinTriple (a : t3) (b : t3) =
     let (a1, a2, a3) = a in
     let (b1, b2, b3) = b in
-    Interval.join a1 b1, Interval.join a2 b2, Interval.join a3 b3
+    join a1 b1, join a2 b2, join a3 b3
   
   let triplePP a =
     let (x, y, z) = a in
-    Printf.sprintf "{x:%12s, y:%12s, z:%12s}"
+    Printf.sprintf "{x:%8s, y:%8s, z:%8s}"
                    (pp x) (pp y) (pp z)
 end
 
@@ -209,21 +196,51 @@ struct
 
     | Stop -> []
 
-  let update (p : program) (ar : (t * t * t) array) : (t * t * t) array =
+  type approx = (t * t * t) array
+                  
+  let narrowApprox (a : approx) (b : approx) =
+    let res = Array.copy a in
+    for i = 0 to Array.length a - 1 do
+      res.(i) <- narrow a.(i) b.(i) 
+    done;
+    res
+  
+  let widenApprox (a : approx) (b : approx) =
+    let res = Array.copy a in
+    for i = 0 to Array.length a - 1 do
+      res.(i) <- widen a.(i) b.(i) 
+    done;
+    res
+
+  let updateF f (p : program) (ar : (t * t * t) array) : (t * t * t) array =
     let newAr = Array.copy ar in
     let pcounter = ref 0 in
     List.iter (fun i ->
       pcounter := !pcounter + 1;
       let curApp  = ar.(!pcounter - 1) in
       let updList = updateApproxPC i !pcounter curApp in
+      
+      (*
+      List.iter (fun (pc, updApp) ->
+                 Printf.printf "%i | %s\n" pc (triplePP updApp)
+                ) updList;
+      *)
       List.iter (fun (pc, updApp) ->
         let app = newAr.(pc - 1) in
         if not (containsBot updApp) then
-          newAr.(pc - 1) <- joinTriple app updApp
+          (*newAr.(pc - 1) <- joinTriple app updApp*)
+          newAr.(pc - 1) <- f app updApp
+          (*;
+          Printf.printf "%i\n-----\n%s\n" pc (triplePP updApp);
+          Printf.printf "%s\n"(triplePP app);
+          Printf.printf "==\n%s\n"(triplePP newAr.(pc - 1))
+           *)
       ) updList
     ) p;
     newAr
   
+  let update = updateF widen
+
   open PrettyPrinter
   let instApproxPP (n : pc) (i : inst) (a : t * t * t) : string =
     Printf.sprintf "%3i: %-20s | %s" n (instPP i) (triplePP a)
@@ -239,16 +256,25 @@ struct
     !res
 
   let loop pr =
+    let fsharpWiden  = updateF widen  pr in
+    let fsharpNarrow = updateF narrow pr in
+    let printer = programApproxPP pr in
     let oldApp = ref (Array.make (List.length pr) botTriple) in
     let app    = ref (Array.copy !oldApp) in
     !app.(0) <- initTriple;
-    while app <> oldApp do
-      Printf.printf "%s\n\n" (programApproxPP pr !app);
-      let newApp = update pr !app in
-      oldApp := !app;
-      app    := newApp
-    done
-
+    let iter f =
+      while app <> oldApp do
+        Printf.printf "%s\n" (printer !app);
+        let newApp = f !app in 
+        oldApp := !app;
+        app    := newApp
+      done
+    in
+    Printf.printf "Widening:\n";
+    iter fsharpWiden;
+    Printf.printf "Narrowing:\n";
+    oldApp := Array.make (List.length pr) botTriple; 
+    iter fsharpNarrow
 end
 
 open Parser
