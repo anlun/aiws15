@@ -69,5 +69,50 @@ struct
     | NegInf x -> NegInf (x-1)
     | PosInf x -> PosInf (x-1)
     | _ -> i
+
+  let normalize a =
+    match a with
+    | Fin (x, y) -> if x > y then Bot else a
+    | _ -> a
+
+  let narrow a b =
+    match a, b with 
+    | Bot, _ -> Bot
+    | _, Bot -> Bot
+    | Top, _ -> b
+    | _, Top -> a
+    | NegInf _, NegInf _ -> a
+    | NegInf x, PosInf y -> normalize (Fin (y, x))
+    | NegInf x, Fin (y, _) -> normalize (Fin (y, x))
+  
+    | PosInf x, NegInf y -> normalize (Fin (x, y))
+    | PosInf _, PosInf _ -> a
+    | PosInf x, Fin (_, y) -> normalize (Fin (x, y))
+  
+    | _ -> a
+  
+  let widen a b =
+    match a, b with
+    | Bot, _ -> Bot
+    | _, Bot -> Bot
+    | Top, _ -> Top
+    | _, Top -> Top
+
+    | NegInf x, NegInf y     -> if x >= y  then a else Top
+    | NegInf x, PosInf y     -> Top
+    | NegInf x, Fin (y1, y2) -> if x >= y2 then NegInf x else Top
+    
+    | PosInf x, NegInf y     -> Top
+    | PosInf x, PosInf y     -> if x <= y  then PosInf x else Top
+    | PosInf x, Fin (y1, y2) -> if x <= y1 then PosInf x else Top
+    
+    | Fin (x1, x2), NegInf y -> if x2 >= y then NegInf x2 else Top
+    | Fin (x1, x2), PosInf y -> if x1 <= y then PosInf x1 else Top
+    | Fin (x1, x2), Fin (y1, y2) ->
+       match x1 <= y1, x2 <= y2 with
+       |  true,  true -> Fin (x1, x2)
+       |  true, false -> PosInf x1
+       | false,  true -> NegInf x2
+       | false, false -> Top
 end
 
