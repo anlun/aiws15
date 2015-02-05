@@ -116,3 +116,34 @@ struct
        | false, false -> Top
 end
 
+module IntervalState =
+struct
+  open Interval
+  type t = Interval.t * Interval.t * Interval.t
+
+  let narrow (a : t) (b : t) : t =
+    let (a1, a2, a3) = a in
+    let (b1, b2, b3) = b in
+    Interval.narrow a1 b1, Interval.narrow a2 b2, Interval.narrow a3 b3
+
+  let widen (a : t) (b : t) : t =
+    let (a1, a2, a3) = a in
+    let (b1, b2, b3) = b in
+    Interval.widen a1 b1, Interval.widen a2 b2, Interval.widen a3 b3
+  
+  type approx = t array
+                  
+  let narrowApprox (a : approx) (b : approx) =
+    let res = Array.copy a in
+    for i = 0 to Array.length a - 1 do
+      res.(i) <- narrow a.(i) b.(i) 
+    done;
+    res
+  
+  let widenApprox (a : approx) (b : approx) =
+    let res = Array.copy a in
+    for i = 0 to Array.length a - 1 do
+      res.(i) <- widen a.(i) b.(i) 
+    done;
+    res
+end
