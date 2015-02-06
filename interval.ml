@@ -2,13 +2,43 @@ module Interval =
 struct
   type t = Bot | NegInf of int | Fin of int * int | PosInf of int | Top
 
+  type  leftBorder = NInf | LNum of int
+  type rightBorder = RNum of int | PInf
+
+  let intervalToBorders i =
+    match i with
+    | Bot        -> (LNum 1, RNum 0)
+    | NegInf x   -> (  NInf, RNum x)
+    | Fin (x, y) -> (LNum x, RNum y)
+    | PosInf x   -> (LNum x,   PInf)
+    | Top        -> (  NInf,   PInf)
+
+  let bordersToInterval b =
+    match b with
+    | (  NInf, RNum x) -> NegInf x
+    | (  NInf,   PInf) -> Top
+    | (LNum x,   PInf) -> PosInf x
+    | (LNum x, RNum y) -> if x <= y then Fin (x, y) else Bot
+
+  let leftBorderLeq a b =
+    match a, b with
+    | NInf, _ -> true
+    | _, NInf -> false
+    | LNum x, LNum y -> x <= y
+  
+  let rightBorderLeq a b =
+    match a, b with
+    | _, PInf -> true
+    | PInf, _ -> false
+    | RNum x, RNum y -> x <= y
+
   let pp (i : t) =
     match i with
     | Bot -> "/"
     | Top -> "Z"
-    | NegInf   x -> Printf.sprintf "(-i, %2i)" x
-    | PosInf   x -> Printf.sprintf "(%2i, +i)" x
-    | Fin (x, y) -> Printf.sprintf "(%2i, %2i)" x y
+    | NegInf   x -> Printf.sprintf "(-i,%2i)" x
+    | PosInf   x -> Printf.sprintf "(%2i,+i)" x
+    | Fin (x, y) -> Printf.sprintf "(%2i,%2i)" x y
 
   let bot : t = Bot
 
@@ -75,45 +105,25 @@ struct
     | Fin (x, y) -> if x > y then Bot else a
     | _ -> a
 
-  let narrow a b =
-    match a, b with 
+  let narrow x y =
+    match x, y with
     | Bot, _ -> Bot
     | _, Bot -> Bot
-    | Top, _ -> b
-    | _, Top -> a
-    | NegInf _, NegInf _ -> a
-    | NegInf x, PosInf y -> normalize (Fin (y, x))
-    | NegInf x, Fin (y, _) -> normalize (Fin (y, x))
-  
-    | PosInf x, NegInf y -> normalize (Fin (x, y))
-    | PosInf _, PosInf _ -> a
-    | PosInf x, Fin (_, y) -> normalize (Fin (x, y))
-  
-    | _ -> a
-  
-  let widen a b =
-    match a, b with
-    | Bot, _ -> b
-    | _, Bot -> a
-    | Top, _ -> Top
-    | _, Top -> Top
+    | _ -> let (a, b) = intervalToBorders x in
+           let (c, d) = intervalToBorders y in
+           let l = if a = NInf then c else a in
+           let r = if b = PInf then d else b in
+           bordersToInterval (l, r)
 
-    | NegInf x, NegInf y     -> if x >= y  then a else Top
-    | NegInf x, PosInf y     -> Top
-    | NegInf x, Fin (y1, y2) -> if x >= y2 then NegInf x else Top
-    
-    | PosInf x, NegInf y     -> Top
-    | PosInf x, PosInf y     -> if x <= y  then PosInf x else Top
-    | PosInf x, Fin (y1, y2) -> if x <= y1 then PosInf x else Top
-    
-    | Fin (x1, x2), NegInf y -> if x2 >= y then NegInf x2 else Top
-    | Fin (x1, x2), PosInf y -> if x1 <= y then PosInf x1 else Top
-    | Fin (x1, x2), Fin (y1, y2) ->
-       match x1 <= y1, x2 >= y2 with
-       |  true,  true -> Fin (x1, x2)
-       |  true, false -> PosInf x1
-       | false,  true -> NegInf x2
-       | false, false -> Top
+   let widen x y =
+    match x, y with
+    | Bot, _ -> y
+    | _, Bot -> x
+    | _ -> let (a, b) = intervalToBorders x in
+           let (c, d) = intervalToBorders y in
+           let l = if  leftBorderLeq a c then a else NInf in
+           let r = if rightBorderLeq d b then b else PInf in
+           bordersToInterval (l, r)
 end
 
 module type AnalysisType =
@@ -169,7 +179,7 @@ struct
   
   let triplePP a =
     let (x, y, z) = a in
-    Printf.sprintf "{x:%8s, y:%8s, z:%8s}"
+    Printf.sprintf "{x: %7s, y: %7s, z: %7s}"
                    (pp x) (pp y) (pp z)
 end
 
@@ -231,8 +241,8 @@ struct
           (*newAr.(pc - 1) <- joinTriple app updApp*)
           newAr.(pc - 1) <- f app updApp
           (*;
-          Printf.printf "%i\n-----\n%s\n" pc (triplePP updApp);
-          Printf.printf "%s\n"(triplePP app);
+          Printf.printf "%i\n-----\n%s\n" pc (triplePP app);
+          Printf.printf "%s\n"(triplePP updApp);
           Printf.printf "==\n%s\n"(triplePP newAr.(pc - 1))
            *)
       ) updList
@@ -292,6 +302,6 @@ let pr_ex4 =
  stop"
      
 let () =
-  let pr1 = fst (List.hd (progP pr_ex4)) in
+  let pr1 = fst (List.hd (progP pr_ex3)) in
   let module M = AbstractInterpreter(IntervalState) in
   M.loop pr1
