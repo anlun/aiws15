@@ -42,36 +42,26 @@ struct
 
   let bot : t = Bot
 
-  let leq a b =
-    match a, b with
+  let leq x y =
+    match x, y with
     | Bot, _ -> true
-    | _, Top -> true
-    | NegInf     x, NegInf y     -> x <= y
-    | Fin   (_, x), NegInf y     -> x <= y
-    | Fin (xa, ya), Fin (xb, yb) -> xa >= xb && ya <= yb
-    | Fin   (x, _), PosInf y     -> x >= y
-    | PosInf     x, PosInf y     -> x >= y
-    | _ -> false
-  
-  let join a b =
-    match a, b with
-    | Bot, _ -> b
-    | _, Bot -> a
-    | _, Top -> Top
-    | Top, _ -> Top
-    | NegInf x, NegInf y -> NegInf (max x y)
-    | PosInf x, PosInf y -> PosInf (min x y)
-    | PosInf _, NegInf _ -> Top
-    | NegInf _, PosInf _ -> Top
+    | _, Bot -> false
+    | _ -> let (a, b) = intervalToBorders x in
+           let (c, d) = intervalToBorders y in
+           let isLBigger =  leftBorderLeq c a in
+           let isRBigger = rightBorderLeq b d in
+           isLBigger && isRBigger
     
-    | Fin (xa, ya), Fin (xb, yb) -> Fin (min xa xb, max ya yb)
-    
-    | Fin (_, x), NegInf y -> NegInf (max x y) 
-    | NegInf y, Fin (_, x) -> NegInf (max x y) 
-    
-    | Fin (x, _), PosInf y -> PosInf (min x y) 
-    | PosInf y, Fin (x, _) -> PosInf (min x y) 
-  
+ let join x y =
+    match x, y with
+    | Bot, _ -> y
+    | _, Bot -> x
+    | _ -> let (a, b) = intervalToBorders x in
+           let (c, d) = intervalToBorders y in
+           let l = if  leftBorderLeq a c then a else c in
+           let r = if rightBorderLeq b d then d else b in
+           bordersToInterval (l, r)
+
   let iszero i =
     match i with
     | Bot -> Bot
