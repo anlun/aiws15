@@ -1,2 +1,2 @@
 all:
-	ocamlc parserComb.ml cm3.ml interval.ml
+	ocamlc parserComb.ml cm3.ml interval.ml driver.ml
