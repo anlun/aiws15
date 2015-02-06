@@ -15,9 +15,23 @@ let pr_ex4 =
  inc y
  dec z
  stop"
+
+let pr_ex5 = 
+"inc y
+ dec y
+ inc y
+ dec z
+ zero x 3 else 6
+ inc z
+ dec x
+ zero x 6 else 9
+ dec z
+ zero z 8 else 11
+ stop"
+
      
 let () =
-  let pr1 = fst (List.hd (progP pr_ex3)) in
-  (*let module M = AbstractInterpreter(IntervalState) in*)
-  let module M = AbstractInterpreter(ParityState) in
+  let pr1 = fst (List.hd (progP pr_ex5)) in
+  let module M = AbstractInterpreter(IntervalState) in
+  (*let module M = AbstractInterpreter(ParityState) in*)
   M.loop pr1
