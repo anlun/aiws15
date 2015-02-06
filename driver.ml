@@ -41,6 +41,6 @@ let pr_ex6 =
      
 let () =
   let pr1 = fst (List.hd (progP pr_ex6)) in
-  let module M = AbstractInterpreter(IntervalState) in
+  let module M = AbstractInterpreter (IntervalState) (ForwardAnalysis) in
   (*let module M = AbstractInterpreter(ParityState) in*)
   M.loop pr1

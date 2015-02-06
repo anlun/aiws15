@@ -63,7 +63,7 @@ end
 
 open AbstractInterpreter
 
-module ParityState : AnalysisType =
+module ParityState : AbstractDomain =
 struct
   include Parity
     type t3 = t * t * t

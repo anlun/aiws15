@@ -118,7 +118,7 @@ end
 
 open AbstractInterpreter
 
-module IntervalState : AnalysisType =
+module IntervalState : AbstractDomain =
 struct
   include Interval
   type t3 = t * t * t
